@@ -3,6 +3,7 @@
 from __future__ import print_function
 from random import randint
 
+import numpy as np
 import os
 import time
 
@@ -29,9 +30,6 @@ class Board(object):
         120, -20, 20,  5,   5,   20,  -20, 120
     ]
 
-    def __init__(self, value=None):
-        print("Initializing game board...")
-
     # [Board.is_legal_move]
     # @param1: Self
     # @param2: Player number to play move for (1 or 2)
@@ -48,8 +46,13 @@ class Board(object):
             (array_pos-1),                  (array_pos+1),
             (array_pos+7),  (array_pos+8),  (array_pos+9)
         ]
+        # Trim invalid board spaces
         adjacent_positions = [x for x in adjacent_positions if (x >= 0 and x <= 63)]
-
+        if array_pos % 8 == 0:
+            adjacent_positions = [x for x in adjacent_positions if (x % 8 != 7)]
+        elif array_pos % 8 == 7:
+            adjacent_positions = [x for x in adjacent_positions if (x % 8 != 0)]
+        
         # Now determine if any adjacent positions belong the the opponent
         for adj in adjacent_positions:
             if player_num + self._board[adj] == 3:
@@ -58,11 +61,15 @@ class Board(object):
                 # hit an empty space or go off the board (invalid move)
                 adj_diff =  adj - array_pos
                 adj_traverse = array_pos + adj_diff
-                while self._board[adj_traverse] != 0 and adj_traverse >= 0 and adj_traverse <= 63:
-                    adj_traverse += adj_diff
-                    if self._board[adj_traverse] == player_num:
+                # Watch out for the fucking edge of the board!
+                while adj_traverse >= 0 and adj_traverse <= 63:
+                    if self._board[adj_traverse] == 0:
+                        break
+                    elif self._board[adj_traverse] == player_num:
                         # Legal move! Return true.
                         return True
+                    adj_traverse += adj_diff
+                    
 
         # If we got to this point, it's not a legal move
         return False
@@ -82,7 +89,7 @@ class Board(object):
     # @return: List of all legal, available moves for given player
     def get_available_moves(self, player_num):
         available_moves = []
-        for pos in range(0, 63):
+        for pos in range(64):
             if self.is_legal_move(player_num, pos):
                 available_moves.append(pos)
         return available_moves
@@ -116,13 +123,23 @@ class Board(object):
                 adj_diff =  adj - array_pos
                 adj_traverse = array_pos + adj_diff
                 traverse_positions = []
-                while self._board[adj_traverse] != 0 and adj_traverse >= 0 and adj_traverse <= 63:
+                while adj_traverse >= 0 and adj_traverse <= 63:
+                    # If we hit a 0 then opponent is not surrounded, bail out
+                    if self._board[adj_traverse] == 0:
+                        break
+                    # Watch out for the left and right edges of the board!
+                    # Possible bug in the logic below, keep an eye on it
+                    if adj_diff > 0 and adj_traverse % 8 == 7 and self._board[adj_traverse] != player_num:
+                        break
+                    elif adj_diff < 0 and adj_traverse % 8 == 0 and self._board[adj_traverse] != player_num:
+                        break
+                    # Flip surrounded opponent pieces
                     traverse_positions.append(adj_traverse)
-                    adj_traverse += adj_diff
-                    # Flip all surrounded opponent positions
                     if self._board[adj_traverse] == player_num:
                         for pos in traverse_positions:
                             self._board[pos] = player_num
+                        break
+                    adj_traverse += adj_diff
 
     # [Board.show]
     # @description: Prints the board to stdout
@@ -134,53 +151,99 @@ class Board(object):
                 print("")
 
 
-def main():
-    
-    board = Board()
-    
-    # Setup the initial game state
-    player1_pieces=board.get_player_pieces(1)
-    player2_pieces=board.get_player_pieces(2)
-    player1_available_moves=board.get_available_moves(1)
-    player2_available_moves=board.get_available_moves(2)
-    game_state = "player1_turn"
+class Game(object):
 
-    while game_state != "game_over":
+    _board = Board()
+    _player1_pieces = _board.get_player_pieces(1)
+    _player2_pieces = _board.get_player_pieces(2)
+    _player1_available_moves = _board.get_available_moves(1)
+    _player2_available_moves = _board.get_available_moves(2)
 
-        board.show()
-        print("Player 1 pieces: " + str(player1_pieces))
-        print("Player 2 pieces: " + str(player2_pieces))
-        print("Player 1 available moves: " + str(player1_available_moves))
-        print("Player 2 available moves: " + str(player2_available_moves) + "\n")
+    # [Game.play]
+    # @description: Main game play loop
+    # @param1: Self
+    # @param2: Starting player number (1 or 2)
+    def play(self, start_player_num):
 
-        if game_state == "player1_turn":
-            print("Player 1 (human) turn")
-            move_row = raw_input("Row (1-8): ")
-            move_col = raw_input("Col (1-8): ")
-            move_pos = (int(move_row)-1)*8 + (int(move_col)-1)
-            if move_pos in player1_available_moves:
-                board.play_move(1, move_row, move_col)
-                print("Player 1 played at " + str(move_row) + ", " + str(move_col))
-                player2_available_moves=board.get_available_moves(2)
-                game_state = "player2_turn"
-            else:
-                print("\n*** Invalid move! Try again ***\n")
-                time.sleep(1)
+        game_state = "player" + str(start_player_num) + "_turn"
 
-        elif game_state == "player2_turn":
-            # For now, computer plays a random move
-            move_row = randint(1, 8)
-            move_col = randint(1, 8)
-            move_pos = (int(move_row)-1)*8 + (int(move_col)-1)
-            while move_pos not in player2_available_moves:
+        # Main game loop
+        while game_state != "game_over":
+
+            self._board.show()
+            self._player1_pieces = self._board.get_player_pieces(1)
+            self._player2_pieces = self._board.get_player_pieces(2)
+            print("\nPlayer 1 pieces: " + str(self._player1_pieces))
+            print("Player 2 pieces: " + str(self._player2_pieces))
+            print("Player 1 available moves: " + str(self._player1_available_moves))
+            print("Player 2 available moves: " + str(self._player2_available_moves) + "\n")
+
+            if game_state == "player1_turn":
+                print("Player 1 (human) turn")
+                move_row = raw_input("Row (1-8): ")
+                move_col = raw_input("Col (1-8): ")
+
+                if not move_row.isdigit() or not move_col.isdigit():
+                    print("\n*** Invalid input! Try again ***\n")
+                    time.sleep(1)
+                    continue
+
+                move_pos = (int(move_row)-1)*8 + (int(move_col)-1)
+                if move_pos in self._player1_available_moves:
+                    self._board.play_move(1, move_row, move_col)
+                    print("Player 1 played at " + str(move_row) + ", " + str(move_col))
+                    self._player2_available_moves = self._board.get_available_moves(2)
+                    # Check if other player passes, or if game is over
+                    if len(self._player2_available_moves) == 0:
+                        self._player1_available_moves = self.board.get_available_moves(1)
+                        if len(self._player1_available_moves) == 0:
+                            game_state = "game_over"
+                        else:
+                            print("Player 2 has no available moves. Passing.")
+                    else:
+                        game_state = "player2_turn"
+                else:
+                    print("\n*** Invalid move! Try again ***\n")
+                    time.sleep(1)
+
+            elif game_state == "player2_turn":
+                # For now, computer plays a random move
                 move_row = randint(1, 8)
                 move_col = randint(1, 8)
                 move_pos = (int(move_row)-1)*8 + (int(move_col)-1)
-            board.play_move(2, move_row, move_col)
-            print("Computer played at " + str(move_row) + ", " + str(move_col))
-            player1_available_moves=board.get_available_moves(1)
-            game_state = "player1_turn"
+                while move_pos not in self._player2_available_moves:
+                    move_row = randint(1, 8)
+                    move_col = randint(1, 8)
+                    move_pos = (int(move_row)-1)*8 + (int(move_col)-1)
+                self._board.play_move(2, move_row, move_col)
+                print("Computer played at row " + str(move_row) + ", column " + str(move_col) + "\n")
+                self._player1_available_moves = self._board.get_available_moves(1)
+                # Check if other player passes, or if game is over
+                if len(self._player1_available_moves) == 0:
+                    self._player2_available_moves = self.board.get_available_moves(2)
+                    if len(self._player2_available_moves) == 0:
+                        game_state = "game_over"
+                    else:
+                        print("Player 1 has no available moves. Passing.")
+                else:
+                    game_state = "player1_turn"
 
+        # At this point we're out of the main loop, game is over! First
+        print("Game over!")
+        print("Player 1 has " + str(len(self._player1_pieces)) + "pieces")
+        print("Player 2 has " + str(len(self._player2_pieces)) + "pieces")
+        if len(self._player1_pieces) > len(self._player2_pieces):
+            print("Player 1 wins!")
+        elif len(self._player2_pieces) > len(self._player1_pieces):
+            print("Player 2 wins!")
+        else:
+            print("Game is a draw")
+
+
+
+def main():
+    game = Game()
+    game.play(2)
 
 if __name__ == "__main__":
     main()
