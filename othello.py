@@ -52,7 +52,7 @@ class Board(object):
             adjacent_positions = [x for x in adjacent_positions if (x % 8 != 7)]
         elif array_pos % 8 == 7:
             adjacent_positions = [x for x in adjacent_positions if (x % 8 != 0)]
-        
+
         # Now determine if any adjacent positions belong the the opponent
         for adj in adjacent_positions:
             if player_num + self._board[adj] == 3:
@@ -107,15 +107,21 @@ class Board(object):
         # First, set the move position
         self._board[array_pos] = player_num
 
-        # Now make a list of all adjacent, valid indices
+        # Now make a list of all adjacent positions
         adjacent_positions=[ 
             (array_pos-9),  (array_pos-8),  (array_pos-7),
             (array_pos-1),                  (array_pos+1),
             (array_pos+7),  (array_pos+8),  (array_pos+9)
         ]
+        # Trim invalid board spaces
         adjacent_positions = [x for x in adjacent_positions if (x >= 0 and x <= 63)]
+        if array_pos % 8 == 0:
+            adjacent_positions = [x for x in adjacent_positions if (x % 8 != 7)]
+        elif array_pos % 8 == 7:
+            adjacent_positions = [x for x in adjacent_positions if (x % 8 != 0)]
 
         # Iterate over the adjacent positions, check for opponent pieces
+        flip_pieces = []
         for adj in adjacent_positions:
             if player_num + self._board[adj] == 3:
                 # Traverse the board in the direction of the opponent piece.
@@ -128,18 +134,27 @@ class Board(object):
                     if self._board[adj_traverse] == 0:
                         break
                     # Watch out for the left and right edges of the board!
-                    # Possible bug in the logic below, keep an eye on it
-                    if adj_diff > 0 and adj_traverse % 8 == 7 and self._board[adj_traverse] != player_num:
+                    # Need to make sure right/left and diagonal moves cannot
+                    # cross the edges of the board, but up/down moves can run
+                    # along left-most and right-most columns.
+                    # The logic below is a disgusting mess. Try to clean it up?
+                    if (adj_diff == 1 or adj_diff == 9) and adj_traverse % 8 == 7 and self._board[adj_traverse] != player_num:
                         break
-                    elif adj_diff < 0 and adj_traverse % 8 == 0 and self._board[adj_traverse] != player_num:
+                    elif (adj_diff == -1 or adj_diff == -9) and adj_traverse % 8 == 0 and self._board[adj_traverse] != player_num:
                         break
-                    # Flip surrounded opponent pieces
+                    # Add surrounded opponent pieces to flip list. Don't flip
+                    # them just yet, because they might influence other
+                    # adjacent positions.
                     traverse_positions.append(adj_traverse)
                     if self._board[adj_traverse] == player_num:
                         for pos in traverse_positions:
-                            self._board[pos] = player_num
+                            flip_pieces.append(pos)
                         break
                     adj_traverse += adj_diff
+
+        # Now we actually flip the surrounded pieces
+        for pos in flip_pieces:
+            self._board[pos] = player_num
 
     # [Board.show]
     # @description: Prints the board to stdout
@@ -195,7 +210,7 @@ class Game(object):
                     self._player2_available_moves = self._board.get_available_moves(2)
                     # Check if other player passes, or if game is over
                     if len(self._player2_available_moves) == 0:
-                        self._player1_available_moves = self.board.get_available_moves(1)
+                        self._player1_available_moves = self._board.get_available_moves(1)
                         if len(self._player1_available_moves) == 0:
                             game_state = "game_over"
                         else:
@@ -220,7 +235,7 @@ class Game(object):
                 self._player1_available_moves = self._board.get_available_moves(1)
                 # Check if other player passes, or if game is over
                 if len(self._player1_available_moves) == 0:
-                    self._player2_available_moves = self.board.get_available_moves(2)
+                    self._player2_available_moves = self._board.get_available_moves(2)
                     if len(self._player2_available_moves) == 0:
                         game_state = "game_over"
                     else:
@@ -229,13 +244,13 @@ class Game(object):
                     game_state = "player1_turn"
 
         # At this point we're out of the main loop, game is over! First
-        print("Game over!")
-        print("Player 1 has " + str(len(self._player1_pieces)) + "pieces")
-        print("Player 2 has " + str(len(self._player2_pieces)) + "pieces")
+        print("\n\nGame over!\n")
+        print("Player 1 has " + str(len(self._player1_pieces)) + " pieces")
+        print("Player 2 has " + str(len(self._player2_pieces)) + " pieces\n")
         if len(self._player1_pieces) > len(self._player2_pieces):
-            print("Player 1 wins!")
+            print("Player 1 wins!\n\n")
         elif len(self._player2_pieces) > len(self._player1_pieces):
-            print("Player 2 wins!")
+            print("Player 2 wins!\n\n")
         else:
             print("Game is a draw")
 
