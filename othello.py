@@ -173,17 +173,18 @@ class Game(object):
     _player2_pieces = _board.get_player_pieces(2)
     _player1_available_moves = _board.get_available_moves(1)
     _player2_available_moves = _board.get_available_moves(2)
+    _game_state = ""
 
     # [Game.play]
-    # @description: Main game play loop
+    # @description: Main game loop. Human is player 1, computer is player 2.
     # @param1: Self
     # @param2: Starting player number (1 or 2)
     def play(self, start_player_num):
 
-        game_state = "player" + str(start_player_num) + "_turn"
+        self._game_state = "player" + str(start_player_num) + "_turn"
 
         # Main game loop
-        while game_state != "game_over":
+        while self._game_state != "game_over":
 
             self._board.show()
             self._player1_pieces = self._board.get_player_pieces(1)
@@ -193,7 +194,7 @@ class Game(object):
             print("Player 1 available moves: " + str(self._player1_available_moves))
             print("Player 2 available moves: " + str(self._player2_available_moves) + "\n")
 
-            if game_state == "player1_turn":
+            if self._game_state == "player1_turn":
                 print("Player 1 (human) turn")
                 move_row = raw_input("Row (1-8): ")
                 move_col = raw_input("Col (1-8): ")
@@ -212,16 +213,16 @@ class Game(object):
                     if len(self._player2_available_moves) == 0:
                         self._player1_available_moves = self._board.get_available_moves(1)
                         if len(self._player1_available_moves) == 0:
-                            game_state = "game_over"
+                            self._game_state = "game_over"
                         else:
                             print("Player 2 has no available moves. Passing.")
                     else:
-                        game_state = "player2_turn"
+                        self._game_state = "player2_turn"
                 else:
                     print("\n*** Invalid move! Try again ***\n")
                     time.sleep(1)
 
-            elif game_state == "player2_turn":
+            elif self._game_state == "player2_turn":
                 # For now, computer plays a random move
                 move_row = randint(1, 8)
                 move_col = randint(1, 8)
@@ -237,14 +238,17 @@ class Game(object):
                 if len(self._player1_available_moves) == 0:
                     self._player2_available_moves = self._board.get_available_moves(2)
                     if len(self._player2_available_moves) == 0:
-                        game_state = "game_over"
+                        self._game_state = "game_over"
                     else:
                         print("Player 1 has no available moves. Passing.")
                 else:
-                    game_state = "player1_turn"
+                    self._game_state = "player1_turn"
 
         # At this point we're out of the main loop, game is over! First
         print("\n\nGame over!\n")
+        self._board.show()
+        self._player1_pieces = self._board.get_player_pieces(1)
+        self._player2_pieces = self._board.get_player_pieces(2)
         print("Player 1 has " + str(len(self._player1_pieces)) + " pieces")
         print("Player 2 has " + str(len(self._player2_pieces)) + " pieces\n")
         if len(self._player1_pieces) > len(self._player2_pieces):
@@ -255,10 +259,134 @@ class Game(object):
             print("Game is a draw")
 
 
+class RandomGame(object):
+
+    _board = Board()
+    _player1_pieces = _board.get_player_pieces(1)
+    _player2_pieces = _board.get_player_pieces(2)
+    _player1_available_moves = _board.get_available_moves(1)
+    _player2_available_moves = _board.get_available_moves(2)
+    _game_state = ""
+
+    # [RandomGame.start]
+    # @description: Starts a random game, but does not play any moves.
+    # @param1: Self
+    def start(self):
+        self._game_state = "player1_turn"
+
+    # [RandomGame.play_next_move]
+    # @description: Plays the next move
+    # @return: The array position of the next move
+    def play_next_move(self):
+        #self._board.show()
+        self._player1_pieces = self._board.get_player_pieces(1)
+        self._player2_pieces = self._board.get_player_pieces(2)
+
+        if self._game_state == "player1_turn":
+            move_pos_index = randint(0, len(self._player1_available_moves)-1)
+            move_pos = self._player1_available_moves[move_pos_index]
+            move_row = (move_pos / 8) + 1
+            move_col = (move_pos % 8) + 1
+            self._board.play_move(1, move_row, move_col)
+            self._player2_available_moves = self._board.get_available_moves(2)
+            # Check if other player passes, or if game is over
+            if len(self._player2_available_moves) == 0:
+                self._player1_available_moves = self._board.get_available_moves(1)
+                if len(self._player1_available_moves) == 0:
+                    self._game_state = "game_over"
+            else:
+                self._game_state = "player2_turn"
+
+        elif self._game_state == "player2_turn":
+            move_pos_index = randint(0, len(self._player2_available_moves)-1)
+            move_pos = self._player2_available_moves[move_pos_index]
+            move_row = (move_pos / 8) + 1
+            move_col = (move_pos % 8) + 1
+            self._board.play_move(2, move_row, move_col)
+            self._player1_available_moves = self._board.get_available_moves(1)
+            # Check if other player passes, or if game is over
+            if len(self._player1_available_moves) == 0:
+                self._player2_available_moves = self._board.get_available_moves(2)
+                if len(self._player2_available_moves) == 0:
+                    self._game_state = "game_over"
+            else:
+                self._game_state = "player1_turn"
+
+
+
+class Trainer(object):
+
+    _qtable = np.zeros((262144, 64))
+
+    def __init__(self):
+        print("Initializing trainer")
+
+    # [Trainer.train]
+    # @description: Play random games, update the q-table along the way
+    def train(self):
+        print("Training!")
+        random_game = RandomGame()
+        random_game.start()
+        while random_game._game_state != "game_over":
+            random_game.play_next_move()
+        
+        # Game is over!
+        print("\n\nGame over!\n")
+        random_game._board.show()
+        random_game._player1_pieces = random_game._board.get_player_pieces(1)
+        random_game._player2_pieces = random_game._board.get_player_pieces(2)
+        print("Player 1 has " + str(len(random_game._player1_pieces)) + " pieces")
+        print("Player 2 has " + str(len(random_game._player2_pieces)) + " pieces\n")
+        if len(random_game._player1_pieces) > len(random_game._player2_pieces):
+            print("Player 1 wins!\n\n")
+        elif len(random_game._player2_pieces) > len(random_game._player1_pieces):
+            print("Player 2 wins!\n\n")
+        else:
+            print("Game is a draw")
+
+    # [Trainer.print_qtable]
+    # @description: Display the q-table. I'll need to come up with some tricks
+    #   to actually make this useful.
+    def print_qtable(self):
+        print(str(self._qtable))
+
+    # [Trainer.save_training_data]
+    # @description: Save training data to a file
+    def save_training_data(self):
+        training_data_file = open("othello-training-data.csv", "w")
+        percent_done = 0
+        for state in range(0, 262144):
+            if state % 2622 == 0:
+                percent_done += 1
+                print(str(percent_done) + "% done saving training data", end='\n')
+            for action in range(0, 64):
+                training_data_file.write(str(self._qtable[state][action]) + ",")
+            training_data_file.seek(-1, os.SEEK_CUR)
+            training_data_file.write("\n")
+
+    # [Trainer.load_training_data]
+    # @description: Load training data from a file, populate _qtable
+    def load_training_data(self):
+        training_data_file = open("othello-training-data.csv", "r")
+        state_index = 0
+        percent_done = 0
+        for state_actions in training_data_file:
+            if state_index % 26220 == 0:
+                percent_done += 10
+                print(str(percent_done) + "% done loading training data", end='\n')
+            actions = state_actions.split(",")
+            self._qtable[state_index] = actions
+            state_index += 1
+
+
 
 def main():
     game = Game()
     game.play(2)
+
+    #trainer = Trainer()
+    #trainer.train()
+
 
 if __name__ == "__main__":
     main()
