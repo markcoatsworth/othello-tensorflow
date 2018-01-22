@@ -1,15 +1,21 @@
+import numpy as np
+
+BLACK = 1
+WHITE = 2
+
 class Board(object):
 
-    _board = [
-        0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 2, 1, 0, 0, 0,
-        0, 0, 0, 1, 2, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0,
-    ]
+    # _board = [
+    #     0, 0, 0, 0, 0, 0, 0, 0,
+    #     0, 0, 0, 0, 0, 0, 0, 0,
+    #     0, 0, 0, 0, 0, 0, 0, 0,
+    #     0, 0, 0, 2, 1, 0, 0, 0,
+    #     0, 0, 0, 1, 2, 0, 0, 0,
+    #     0, 0, 0, 0, 0, 0, 0, 0,
+    #     0, 0, 0, 0, 0, 0, 0, 0,
+    #     0, 0, 0, 0, 0, 0, 0, 0,
+    # ]
+    _board = np.zeros(64, np.int8)
     _weighted_board = [
         120, -20, 20,  5,   5,   20,  -20, 120,
         -20, -40, -5,  -5,  -5,  -5,  -40, -20,
@@ -20,6 +26,19 @@ class Board(object):
         -20, -40, -5,  -5,  -5,  -5,  -40, -20,
         120, -20, 20,  5,   5,   20,  -20, 120
     ]
+    
+    _player_pieces = [[],[],[]]
+    _available_moves = [[],[],[]]
+
+    # [Board.init]
+    # @description Constructor
+    def __init__(self):
+        self._player_pieces[BLACK] = [28, 35]
+        self._player_pieces[WHITE] = [27, 36]
+        for p in self._player_pieces[BLACK]: self._board[p] = BLACK
+        for p in self._player_pieces[WHITE]: self._board[p] = WHITE
+        self.set_available_moves(BLACK)
+        self.set_available_moves(WHITE)
 
     # [Board.is_legal_move]
     # @param1: Self
@@ -65,25 +84,27 @@ class Board(object):
         # If we got to this point, it's not a legal move
         return False
 
-    # [Board.get_player_pieces]
+    # [Board.set_player_pieces]
     # @param1: Self
-    # @param2: Number of player to lookup pieces for (1 or 2)
-    # @return: List of board positions
-    def get_player_pieces(self, player_num):
+    # @param2: Player to set pieces for (1 or 2)
+    # @return: Nothing. Set list of pieces, then exit.
+    def set_player_pieces(self, player_num):
         pieces = []
         for i in range(64):
             if self._board[i] == player_num:
                 pieces.append(i)
-        return pieces
+        self._player_pieces[player_num] = pieces
 
-    # [Board.get_available_moves]
-    # @return: List of all legal, available moves for given player
-    def get_available_moves(self, player_num):
+    # [Board.set_available_moves]
+    # @param1: Self
+    # @param2: Player to set available moves for (1 or 2)
+    # @return: Nothing. Set list of available moves, then exit.
+    def set_available_moves(self, player_num):
         available_moves = []
         for pos in range(64):
             if self.is_legal_move(player_num, pos):
                 available_moves.append(pos)
-        return available_moves
+        self._available_moves[player_num] = available_moves
 
     # [Board.play_move]
     # @description: Play a move, flip all necessary pieces. Important, we 
@@ -148,14 +169,19 @@ class Board(object):
 
     # [Board.show]
     # @description: Prints the board to stdout
+    # @param1: Self
+    # @param2: Human player (1 or 2), used to show available moves
     # @return: Nothing
-    def show(self):
+    def show(self, human_player):
         #board_chars = chr(0x25ef)+chr(0x25cb)+chr(0x25cf)
         board_chars = chr(0x0020)+chr(0x25cb)+chr(0x25cf)
         print("  a b c d e f g h")
         for i in range(64):
             if (i % 8) == 0:
                 print(str((i//8)+1) + " ", end='')
-            print(str(board_chars[self._board[i]]) + " ", end='')
+            if i in self._available_moves[human_player]:
+                print(str(chr(0x2a2f)) + " ", end='')
+            else:
+                print(str(board_chars[self._board[i]]) + " ", end='')
             if (i % 8) == 7:
                 print("")
