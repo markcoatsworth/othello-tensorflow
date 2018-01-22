@@ -8,99 +8,121 @@ import numpy as np
 import os
 import time
 
-GAME_OVER = 0
 BLACK = 1
 WHITE = 2
+GAME_OVER = 3
 
 
 class Game(object):
 
     _board = Board()
-    _black_pieces = _board.get_player_pieces(BLACK)
-    _white_pieces = _board.get_player_pieces(WHITE)
-    _black_available_moves = _board.get_available_moves(BLACK)
-    _white_available_moves = _board.get_available_moves(WHITE)
+    # Cheap hack to allow empty board pieces to retain value 0: add an extra
+    # empty list at index 0, so both indices 1 (BLACK) and 2 (WHITE) are valid.
+    _player_names = ["","",""]
+    _player_pieces = [[],[],[]]
+    _available_moves = [[],[],[]]
+    
+    # [Game.init]
+    # @description Constructor
+    def __init__(self):
+        self._available_moves[BLACK] = self._board.get_available_moves(BLACK)
+        self._available_moves[WHITE] = self._board.get_available_moves(WHITE)
+        self._game_turn = BLACK
+
+    # [Game.is_valid_input]
+    # @description: Verify that an input string matches [a-h][1-8] format
+    def is_valid_input(self, input):
+        if not len(str(input)) == 2:
+            return False
+        move_col = ord(input[0]) - 96
+        if str.isdigit(input[1]):
+            move_row = int(input[1])
+        else:
+            return False
+        if not ((move_col >= 1 and move_col <= 8) and (move_row >= 1 and move_row <= 8)):
+            return False
+        return True
+
 
     # [Game.play]
     # @description: Main game loop. 
     # @param1: Self
-    # @param2: Starting player (BLACK or WHITE)
-    def play(self, start_player):
+    # @param2: Which player is human (BLACK or WHITE)
+    def play(self, human_player):
 
-        self._game_turn = start_player
+        self._player_names[human_player] = "human"
+        self._player_names[human_player^3] = "computer"
 
         # Main game loop
         while self._game_turn != GAME_OVER:
 
             self._board.show()
-            self._black_pieces = self._board.get_player_pieces(BLACK)
-            self._white_pieces = self._board.get_player_pieces(WHITE)
+            self._player_pieces[BLACK] = self._board.get_player_pieces(BLACK)
+            self._player_pieces[WHITE] = self._board.get_player_pieces(WHITE)
+            
+            current_player = self._game_turn
+            opponent = self._game_turn^3
 
-            print("\nBlack pieces: " + str(self._black_pieces))
-            print("White pieces: " + str(self._white_pieces))
-            print("Black available moves: " + str(self._black_available_moves))
-            print("White available moves: " + str(self._white_available_moves) + "\n")
+            print("\nBlack (" + self._player_names[BLACK] + ") pieces: " + str(self._player_pieces[BLACK]))
+            print("White (" + self._player_names[WHITE] + ") pieces: " + str(self._player_pieces[WHITE]))
+            print("Black (" + self._player_names[BLACK] + ") available moves: " + str(self._available_moves[BLACK]))
+            print("White (" + self._player_names[WHITE] + ") available moves: " + str(self._available_moves[WHITE]) + "\n")
 
-            if self._game_turn == BLACK:
-                print("Black turn")
-                move_col = input("Col (a-h): ")
-                move_row = input("Row (1-8): ")
-
-                if not move_row.isdigit() or not move_col.isdigit():
+            # Human turn
+            if current_player == human_player:
+                move_input = input("Human move [a-h][1-8]: ")
+                
+                if not self.is_valid_input(move_input):
                     print("\n*** Invalid input! Try again ***\n")
                     time.sleep(1)
                     continue
 
-                move_pos = (int(move_row)-1)*8 + (int(move_col)-1)
-                if move_pos in self._black_available_moves:
-                    self._board.play_move(BLACK, move_row, move_col)
-                    print("Black played at " + str(move_row) + ", " + str(move_col))
-                    self._white_available_moves = self._board.get_available_moves(WHITE)
+                move_pos = (int(int(move_input[1]))-1)*8 + (int(ord(move_input[0])-96)-1)
+
+                if move_pos in self._available_moves[current_player]:
+                    self._board.play_move(current_player, move_pos)
+                    print("Human played " + move_input + " pos=" + str(move_pos))
+                    self._available_moves[opponent] = self._board.get_available_moves(opponent)
                     # Check if other player passes, or if game is over
-                    if len(self._white_available_moves) == 0:
-                        self._black_available_moves = self._board.get_available_moves(BLACK)
-                        if len(self._black_available_moves) == 0:
+                    if len(self._available_moves[opponent]) == 0:
+                        self._available_moves[current_player] = self._board.get_available_moves(current_player)
+                        if len(self._available_moves[current_player]) == 0:
                             self._game_turn = GAME_OVER
                         else:
-                            print("White has no available moves. Passing.")
+                            print("Human has no available moves. Passing.")
                     else:
-                        self._game_turn = "white_turn"
+                        self._game_turn = opponent
                 else:
                     print("\n*** Invalid move! Try again ***\n")
                     time.sleep(1)
 
-            elif self._game_turn == WHITE:
+            # Computer turn
+            else:
                 # For now, computer plays a random move
-                move_col = randint(1, 8)
-                move_row = randint(1, 8)
-                move_pos = (int(move_row)-1)*8 + (int(move_col)-1)
-                while move_pos not in self._white_available_moves:
-                    move_row = randint(1, 8)
-                    move_col = randint(1, 8)
-                    move_pos = (int(move_row)-1)*8 + (int(move_col)-1)
-                self._board.play_move(WHITE, move_row, move_col)
-                print("White played at row " + str(move_row) + ", column " + str(move_col) + "\n")
-                self._white_available_moves = self._board.get_available_moves(BLACK)
+                move_pos = self._available_moves[current_player][randint(0, len(self._available_moves[current_player])-1)]
+                self._board.play_move(current_player, move_pos)
+                print("Computer played at pos " + str(move_pos) + "\n")
+                self._available_moves[opponent] = self._board.get_available_moves(opponent)
                 # Check if other player passes, or if game is over
-                if len(self._black_available_moves) == 0:
-                    self._white_available_moves = self._board.get_available_moves(WHITE)
-                    if len(self._white_available_moves) == 0:
+                if len(self._available_moves[opponent]) == 0:
+                    self._available_moves[current_player] = self._board.get_available_moves(current_player)
+                    if len(self._available_moves[current_player]) == 0:
                         self._game_turn = GAME_OVER
                     else:
-                        print("White has no available moves. Passing.")
+                        print("Computer has no available moves. Passing.")
                 else:
-                    self._game_turn = BLACK
+                    self._game_turn = opponent
 
         # At this point we're out of the main loop, game is over! First
         print("\n\nGame over!\n")
         self._board.show()
-        self._black_pieces = self._board.get_player_pieces(BLACK)
-        self._white_pieces = self._board.get_player_pieces(WHITE)
-        print("Black has " + str(len(self._black_pieces)) + " pieces")
-        print("White has " + str(len(self._white_pieces)) + " pieces\n")
-        if len(self._black_pieces) > len(self._white_pieces):
+        self._player_pieces[BLACK] = self._board.get_player_pieces(BLACK)
+        self._player_pieces[WHITE] = self._board.get_player_pieces(WHITE)
+        print("Black has " + str(len(self._player_pieces[BLACK])) + " pieces")
+        print("White has " + str(len(self._player_pieces[WHITE])) + " pieces\n")
+        if len(self._player_pieces[BLACK]) > len(self._player_pieces[WHITE]):
             print("Black wins!\n\n")
-        elif len(self._white_pieces) > len(self._black_pieces):
+        elif len(self._player_pieces[WHITE]) > len(self._player_pieces[BLACK]):
             print("White wins!\n\n")
         else:
             print("Game is a draw")

@@ -90,25 +90,23 @@ class Board(object):
     #   assume the move is legal!
     # @param1: Self
     # @param2: Player number to play move for (1 or 2)
-    # @param3: Move row (1 to 8)
-    # @param4: Move column (1 to 8)
-    def play_move(self, player_num, move_row, move_col):
-        array_pos = (int(move_row)-1)*8 + (int(move_col)-1)
+    # @param3: Move position (0 to 63)
+    def play_move(self, player_num, move_pos):
 
         # First, set the move position
-        self._board[array_pos] = player_num
+        self._board[move_pos] = player_num
 
         # Now make a list of all adjacent positions
         adjacent_positions=[ 
-            (array_pos-9),  (array_pos-8),  (array_pos-7),
-            (array_pos-1),                  (array_pos+1),
-            (array_pos+7),  (array_pos+8),  (array_pos+9)
+            (move_pos-9),   (move_pos-8),   (move_pos-7),
+            (move_pos-1),                   (move_pos+1),
+            (move_pos+7),   (move_pos+8),   (move_pos+9)
         ]
         # Trim invalid board spaces
         adjacent_positions = [x for x in adjacent_positions if (x >= 0 and x <= 63)]
-        if array_pos % 8 == 0:
+        if move_pos % 8 == 0:
             adjacent_positions = [x for x in adjacent_positions if (x % 8 != 7)]
-        elif array_pos % 8 == 7:
+        elif move_pos % 8 == 7:
             adjacent_positions = [x for x in adjacent_positions if (x % 8 != 0)]
 
         # Iterate over the adjacent positions, check for opponent pieces
@@ -117,8 +115,8 @@ class Board(object):
             if player_num + self._board[adj] == 3:
                 # Traverse the board in the direction of the opponent piece.
                 # Keep track of all the position indicies on our path.
-                adj_diff =  adj - array_pos
-                adj_traverse = array_pos + adj_diff
+                adj_diff =  adj - move_pos
+                adj_traverse = move_pos + adj_diff
                 traverse_positions = []
                 while adj_traverse >= 0 and adj_traverse <= 63:
                     # If we hit a 0 then opponent is not surrounded, bail out
@@ -152,10 +150,12 @@ class Board(object):
     # @description: Prints the board to stdout
     # @return: Nothing
     def show(self):
+        #board_chars = chr(0x25ef)+chr(0x25cb)+chr(0x25cf)
+        board_chars = chr(0x0020)+chr(0x25cb)+chr(0x25cf)
         print("  a b c d e f g h")
         for i in range(64):
             if (i % 8) == 0:
                 print(str((i//8)+1) + " ", end='')
-            print(str(self._board[i]) + " ", end='')
+            print(str(board_chars[self._board[i]]) + " ", end='')
             if (i % 8) == 7:
                 print("")
