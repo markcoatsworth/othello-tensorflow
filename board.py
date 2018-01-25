@@ -5,6 +5,12 @@ import numpy as np
 BLACK = 1
 WHITE = 2
 
+spec = [
+    ('_positions', nb.int8[:]),
+    ('_weighted_positions', nb.int8[:]),
+    ('_adjacent_positions', nb.int8[:,:])
+]
+#@nb.jitclass(spec)
 class Board(object):
 
     def __init__(self):
@@ -59,6 +65,10 @@ class Board(object):
                 # Traverse the board in the direction of the opponent piece
                 # until we hit one of player_num's pieces (valid move) or we
                 # hit an empty space or go off the board (invalid move)
+                
+                # MRC: I'm worried that play_move checks for a lot more edge
+                # cases than here. This function is probably buggy.
+                
                 adj_diff =  adj - array_pos
                 adj_traverse = array_pos + adj_diff
                 # Watch out for the edge of the board!

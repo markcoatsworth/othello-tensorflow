@@ -8,10 +8,10 @@ import numpy as np
 import os
 import time
 
+DRAW = 0
 BLACK = 1
 WHITE = 2
 GAME_OVER = 3
-DRAW = 4
 
 class RandomGame(object):
 
@@ -52,7 +52,7 @@ class RandomGame(object):
         self.set_available_moves(BLACK)
         self.set_available_moves(WHITE)
         self._game_turn = start_player
-
+        
         # Main game loop
         while self._game_turn != GAME_OVER:
 
