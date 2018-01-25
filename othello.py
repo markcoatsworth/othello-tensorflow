@@ -2,6 +2,7 @@
 
 from __future__ import print_function
 from board import Board
+from datetime import datetime
 from random import randint
 from randomgame import RandomGame
 
@@ -57,6 +58,9 @@ class Game(object):
     # @param2: Player to set available moves for (1 or 2)
     # @return: Nothing. Set list of available moves, then exit.
     def set_available_moves(self, player_num):
+        # MRC: Optimize this. The list of available moves should contain a series 
+        # of pairs; each pair contains the index of the mov pos, along with a list
+        # of all the directions the move can flip pieces along.
         moves = []
         for pos in range(64):
             if self._board.is_legal_move(player_num, pos):
@@ -69,11 +73,12 @@ class Game(object):
     # @param2 Player number to generate move for (1 or 2)
     def generate_move(self, player_num):
         
-        # Play a random game
-        random_game = RandomGame()
-        random_game._board = copy.deepcopy(self._board)
-        random_game_winner = random_game.play(player_num, False)
-        
+        for i in range(100):
+            # Play a random game
+            random_game = RandomGame()
+            random_game._board = copy.deepcopy(self._board)
+            random_game_winner = random_game.play(player_num, False)
+            
 
         # For now, just generate a random move
         move_pos = self._available_moves[player_num][np.random.randint(0, len(self._available_moves[player_num]))]
@@ -141,10 +146,13 @@ class Game(object):
 
             # Computer turn
             else:
-                # For now, computer plays a random move
+                start_time = datetime.now()
                 move_pos = self.generate_move(current_player)
                 self._board.play_move(current_player, move_pos)
-                print("Computer played " + str(chr((move_pos%8)+97)) + str((move_pos//8)+1) + " (position " + str(move_pos) + ")\n")
+                end_time = datetime.now()
+                move_time = (end_time - start_time)
+
+                print("Computer played " + str(chr((move_pos%8)+97)) + str((move_pos//8)+1) + " (position " + str(move_pos) + "), move took " + str(move_time) + "\n")
                 self.set_available_moves(opponent)
                 # Check if other player passes, or if game is over
                 if len(self._available_moves[opponent]) == 0:

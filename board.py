@@ -1,4 +1,5 @@
 import copy
+import numba as nb
 import numpy as np
 
 BLACK = 1
@@ -18,6 +19,27 @@ class Board(object):
             -20, -40, -5,  -5,  -5,  -5,  -40, -20,
             120, -20, 20,  5,   5,   20,  -20, 120
         ])
+        self._adjacent_positions = []
+        self.set_adjacent_positions()
+
+    # [Board.set_adjacent_positions]
+    # @description: Fills the _adjacent_positions array, so we can later look
+    #   up all adjacent positions to any index in constant time.
+    def set_adjacent_positions(self):
+        for pos in range(0, 64):
+            adj_pos=[ 
+                (pos-9),  (pos-8),  (pos-7),
+                (pos-1),            (pos+1),
+                (pos+7),  (pos+8),  (pos+9)
+            ]
+            # Trim invalid board spaces
+            adj_pos = [x for x in adj_pos if (x >= 0 and x <= 63)]
+            if pos % 8 == 0:
+                adj_pos = [x for x in adj_pos if (x % 8 != 7)]
+            elif pos % 8 == 7:
+                adj_pos = [x for x in adj_pos if (x % 8 != 0)]
+            # Now insert this into the master list
+            self._adjacent_positions.insert(pos, adj_pos)
 
     # [Board.is_legal_move]
     # @param1: Self
@@ -29,18 +51,7 @@ class Board(object):
         if self._positions[array_pos] != 0:
             return False
 
-        # First, find all position indices adjacent to the move
-        adjacent_positions=[ 
-            (array_pos-9),  (array_pos-8),  (array_pos-7),
-            (array_pos-1),                  (array_pos+1),
-            (array_pos+7),  (array_pos+8),  (array_pos+9)
-        ]
-        # Trim invalid board spaces
-        adjacent_positions = [x for x in adjacent_positions if (x >= 0 and x <= 63)]
-        if array_pos % 8 == 0:
-            adjacent_positions = [x for x in adjacent_positions if (x % 8 != 7)]
-        elif array_pos % 8 == 7:
-            adjacent_positions = [x for x in adjacent_positions if (x % 8 != 0)]
+        adjacent_positions = self._adjacent_positions[array_pos]
 
         # Now determine if any adjacent positions belong the the opponent
         for adj in adjacent_positions:
@@ -50,7 +61,7 @@ class Board(object):
                 # hit an empty space or go off the board (invalid move)
                 adj_diff =  adj - array_pos
                 adj_traverse = array_pos + adj_diff
-                # Watch out for the fucking edge of the board!
+                # Watch out for the edge of the board!
                 while adj_traverse >= 0 and adj_traverse <= 63:
                     if self._positions[adj_traverse] == 0:
                         break
@@ -70,21 +81,9 @@ class Board(object):
     # @param3: Move position (0 to 63)
     def play_move(self, player_num, move_pos):
 
-        # First, set the move position
+        # Set the move position, get list of adjacent positions
         self._positions[move_pos] = player_num
-
-        # Now make a list of all adjacent positions
-        adjacent_positions=[ 
-            (move_pos-9),   (move_pos-8),   (move_pos-7),
-            (move_pos-1),                   (move_pos+1),
-            (move_pos+7),   (move_pos+8),   (move_pos+9)
-        ]
-        # Trim invalid board spaces
-        adjacent_positions = [x for x in adjacent_positions if (x >= 0 and x <= 63)]
-        if move_pos % 8 == 0:
-            adjacent_positions = [x for x in adjacent_positions if (x % 8 != 7)]
-        elif move_pos % 8 == 7:
-            adjacent_positions = [x for x in adjacent_positions if (x % 8 != 0)]
+        adjacent_positions = self._adjacent_positions[move_pos]
 
         # Iterate over the adjacent positions, check for opponent pieces
         flip_pieces = []
