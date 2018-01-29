@@ -117,8 +117,6 @@ class Game(object):
                 best_move = child.name
         return child.name
 
-
-
     # [Game.generate_move]
     # @description Generates a (hopefully good) move for a player
     # @param1 Self
@@ -127,37 +125,40 @@ class Game(object):
         
         # Build a new minmax tree and determine best move
         self._minmax_tree = Node("root")
-        minmax_depth = 3
-        self.build_minmax_tree(player_num, self._available_moves[player_num], self._minmax_tree, self, minmax_depth)
+        minmax_depth = 5
+        #self.build_minmax_tree(player_num, self._available_moves[player_num], self._minmax_tree, self, minmax_depth)
         #print(RenderTree(self._minmax_tree))
-        minmax_best_move = self.get_minmax_best_move()
+        #minmax_best_move = self.get_minmax_best_move()
         #print("[Game.generate_move] minmax_best_move=",minmax_best_move)
 
         # Monte carlo simulations
-        #num_simulations = 500
-        #num_simulations_per_move = num_simulations // len(self._available_moves[player_num])
-        #monte_carlo_winners = []
-        #for move in self._available_moves[player_num]:
-        #    this_move_winners = [0, 0, 0]
-        #    for i in range(num_simulations_per_move):
-        #        # Play a random game
-        #        random_game = RandomGame()
-        #        random_game._board = copy.deepcopy(self._board)
-        #        random_game._board.play_move(player_num, move)
-        #        this_move_winners[random_game.play(opponent, False)] += 1
-        #    monte_carlo_winners.append([move, this_move_winners])
-
+        num_simulations = 5000
+        num_simulations_per_move = num_simulations // len(self._available_moves[player_num])
+        monte_carlo_winners = []
+        opponent = player_num^3
+        for move in self._available_moves[player_num]:
+           this_move_winners = [0, 0, 0]
+           for i in range(num_simulations_per_move):
+               # Play a random game
+               random_game = RandomGame()
+               random_game._board = copy.deepcopy(self._board)
+               random_game._board.play_move(player_num, move)
+               this_move_winners[random_game.play(opponent, False)] += 1
+               #print("[Game.generate_mov] move=" + str(move) + ", this_move_winners=" + str(this_move_winners))
+           monte_carlo_winners.append([move, this_move_winners])
+        print("[Game.generate_move] monte_carlo_winners=" + str(monte_carlo_winners))
             
         # Determine which move won the most monte carlo simluations
-        #monte_carlo_best_move = [-1, -1]
-        #for move in monte_carlo_winners:
-        #    if move[1][player_num] > monte_carlo_best_move[1]:
-        #        monte_carlo_best_move = [move[0], move[1][player_num]]
+        monte_carlo_best_move = [-1, -1]
+        for move in monte_carlo_winners:
+           if move[1][player_num] > monte_carlo_best_move[1]:
+               monte_carlo_best_move = [move[0], move[1][player_num]]
 
-        # For now, select move based on monte carlo simulations
+        # Determine the best move
+        move_pos = self._available_moves[player_num][0]
         #move_pos = monte_carlo_best_move[0]
+        #move_pos = minmax_best_move[0]
         
-        move_pos = minmax_best_move[0]
         return move_pos
 
 
@@ -194,7 +195,7 @@ class Game(object):
 
             # Human turn
             if current_player == human_player:
-                move_input = input("Human move [a-h][1-8]: ")
+                move_input = raw_input("Human move [a-h][1-8]: ")
                 
                 if not self.is_valid_input(move_input):
                     print("\n*** Invalid input! Try again ***\n")

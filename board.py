@@ -68,7 +68,13 @@ class Board(object):
                 while adj_traverse >= 0 and adj_traverse <= 63:
                     if self._positions[adj_traverse] == 0:
                         break
-                    elif self._positions[adj_traverse] == player_num:
+                    # Block moves that cross over the right side of the board
+                    if adj_diff in [-7, 1, 9] and adj_traverse % 8 == 7 and self._positions[adj_traverse] != player_num:
+                        break
+                    # Block moves that cross over the left side of the board
+                    elif adj_diff in [-9, -1, 7] and adj_traverse % 8 == 0 and self._positions[adj_traverse] != player_num:
+                        break
+                    if self._positions[adj_traverse] == player_num:
                         # Legal move! Return true.
                         return True
                     adj_traverse += adj_diff
@@ -101,14 +107,11 @@ class Board(object):
                     # If we hit a 0 then opponent is not surrounded, bail out
                     if self._positions[adj_traverse] == 0:
                         break
-                    # Watch out for the left and right edges of the board!
-                    # Need to make sure right/left and diagonal moves cannot
-                    # cross the edges of the board, but up/down moves can run
-                    # along left-most and right-most columns.
-                    # The logic below is a disgusting mess. Try to clean it up?
-                    if (adj_diff == 1 or adj_diff == 9) and adj_traverse % 8 == 7 and self._positions[adj_traverse] != player_num:
+                    # Block moves that cross over the right side of the board
+                    if adj_diff in [-7, 1, 9] and adj_traverse % 8 == 7 and self._positions[adj_traverse] != player_num:
                         break
-                    elif (adj_diff == -1 or adj_diff == -9) and adj_traverse % 8 == 0 and self._positions[adj_traverse] != player_num:
+                    # Block moves that cross over the left side of the board
+                    elif adj_diff in [-9, -1, 7] and adj_traverse % 8 == 0 and self._positions[adj_traverse] != player_num:
                         break
                     # Add surrounded opponent pieces to flip list. Don't flip
                     # them just yet, because they might influence other
@@ -131,15 +134,13 @@ class Board(object):
     # @param2: Human player (1 or 2), used to show available moves
     # @return: Nothing
     def show(self, available_moves=None):
-        #board_chars = chr(0x25ef)+chr(0x25cb)+chr(0x25cf)
-        board_chars = chr(0x0020)+chr(0x25cb)+chr(0x25cf)
         print("  a b c d e f g h")
         for i in range(64):
             if (i % 8) == 0:
-                print(str((i//8)+1) + " ", end='')
+                print str((i//8)+1),
             if i in available_moves:
-                print(str(chr(0x2a2f)) + " ", end='')
+                print "x",
             else:
-                print(str(board_chars[self._positions[i]]) + " ", end='')
+                print str(self._positions[i]),
             if (i % 8) == 7:
                 print("")
