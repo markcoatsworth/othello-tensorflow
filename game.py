@@ -9,6 +9,7 @@ import copy
 import numpy as np
 import os
 import time
+import timeit
 
 BLACK = 1
 WHITE = 2
@@ -74,8 +75,6 @@ class Game(object):
     # @param5: Current depth
     def build_minmax_tree(self, player_num, available_moves, parent_move, parent_game, depth):
 
-        #print("[Game.build_minmax_tree] player_num=",player_num,", available_moves=",available_moves,", parent_move=",parent_move)
-
         # Base case
         if depth == 0:
             return
@@ -97,7 +96,7 @@ class Game(object):
 
             # Move score is always relative to the player who originally called
             # the build_minmax_tree function. 
-            move_score = len(minmax_game._player_pieces[player_num]) - len(minmax_game._player_pieces[opponent])
+            move_score = minmax_game._board.evaluate_score(player_num, minmax_game._player_pieces) #len(minmax_game._player_pieces[player_num]) - len(minmax_game._player_pieces[opponent])
             #minmax_game._board.show(minmax_game._available_moves[opponent])
             node_score = [move, move_score]
             this_move = Node(node_score, parent=parent_move)
@@ -115,7 +114,7 @@ class Game(object):
         for child in self._minmax_tree.children:
             if child.name[1] > best_move[1]:
                 best_move = child.name
-        return child.name
+        return best_move
 
     # [Game.generate_move]
     # @description Generates a (hopefully good) move for a player
@@ -125,10 +124,10 @@ class Game(object):
         
         # Build a new minmax tree and determine best move
         self._minmax_tree = Node("root")
-        minmax_depth = 5
-        #self.build_minmax_tree(player_num, self._available_moves[player_num], self._minmax_tree, self, minmax_depth)
+        minmax_depth = 3
+        self.build_minmax_tree(player_num, self._available_moves[player_num], self._minmax_tree, self, minmax_depth)
         #print(RenderTree(self._minmax_tree))
-        #minmax_best_move = self.get_minmax_best_move()
+        minmax_best_move = self.get_minmax_best_move()
         #print("[Game.generate_move] minmax_best_move=",minmax_best_move)
 
         # Monte carlo simulations
@@ -144,19 +143,22 @@ class Game(object):
                random_game._board = copy.deepcopy(self._board)
                random_game._board.play_move(player_num, move)
                this_move_winners[random_game.play(opponent, False)] += 1
-               #print("[Game.generate_mov] move=" + str(move) + ", this_move_winners=" + str(this_move_winners))
            monte_carlo_winners.append([move, this_move_winners])
-        print("[Game.generate_move] monte_carlo_winners=" + str(monte_carlo_winners))
+        #print("[Game.generate_move] monte_carlo_winners=" + str(monte_carlo_winners))
             
         # Determine which move won the most monte carlo simluations
         monte_carlo_best_move = [-1, -1]
         for move in monte_carlo_winners:
            if move[1][player_num] > monte_carlo_best_move[1]:
                monte_carlo_best_move = [move[0], move[1][player_num]]
+        monte_carlo_confidence = float(monte_carlo_best_move[1]) / float(num_simulations_per_move)
+
+        # Play a random move
+        #move_pos = self._available_moves[player_num][np.random.randint(0, len(self._available_moves[player_num]))]
 
         # Determine the best move
-        move_pos = self._available_moves[player_num][0]
-        #move_pos = monte_carlo_best_move[0]
+        #print("[Game.generate_move] monte_carlo_best_move=" + str(monte_carlo_best_move) + ", monte_carlo_confidence=" + str(monte_carlo_confidence))
+        move_pos = monte_carlo_best_move[0]
         #move_pos = minmax_best_move[0]
         
         return move_pos

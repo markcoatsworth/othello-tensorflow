@@ -8,7 +8,8 @@ class Board(object):
 
     def __init__(self):
         self._positions = np.zeros(64, np.int8)
-        self._weighted_positions = np.array([
+        self._weighted_positions = np.zeros(shape=(3, 64), dtype=int)
+        self._weighted_positions[BLACK] = [
             120, -20, 20,  5,   5,   20,  -20, 120,
             -20, -40, -5,  -5,  -5,  -5,  -40, -20,
             20,  -5,  15,  3,   3,   15,  -5,  20,
@@ -17,7 +18,17 @@ class Board(object):
             20,  -5,  15,  3,   3,   15,  -5,  20,
             -20, -40, -5,  -5,  -5,  -5,  -40, -20,
             120, -20, 20,  5,   5,   20,  -20, 120
-        ])
+        ]
+        self._weighted_positions[WHITE] = [
+            120, -20, 20,  5,   5,   20,  -20, 120,
+            -20, -40, -5,  -5,  -5,  -5,  -40, -20,
+            20,  -5,  15,  3,   3,   15,  -5,  20,
+            5,   -5,  3,   3,   3,   3,   -5,  5,
+            5,   -5,  3,   3,   3,   3,   -5,  5,
+            20,  -5,  15,  3,   3,   15,  -5,  20,
+            -20, -40, -5,  -5,  -5,  -5,  -40, -20,
+            120, -20, 20,  5,   5,   20,  -20, 120
+        ]
         self._adjacent_positions = []
         self.set_adjacent_positions()
 
@@ -40,6 +51,24 @@ class Board(object):
             # Now insert this into the master list
             self._adjacent_positions.insert(pos, adj_pos)
 
+    # [Board.evaluate_score]
+    # @description: EValuate the game board score based on weightings
+    # @param1: Self
+    # @param2: Player number to calculate score for (1 or 2)
+    def evaluate_score(self, player_num, player_pieces):
+        opponent = player_num^3
+        
+        player_score = 0
+        for pos in player_pieces[player_num]:
+            player_score += self._weighted_positions[player_num][pos]
+        
+        opponent_score = 0
+        for pos in player_pieces[opponent]:
+            player_score += self._weighted_positions[opponent][pos]
+        
+        score = player_score - opponent_score
+        return score
+
     # [Board.is_legal_move]
     # @param1: Self
     # @param2: Player number to play move for (1 or 2)
@@ -58,12 +87,9 @@ class Board(object):
                 # Traverse the board in the direction of the opponent piece
                 # until we hit one of player_num's pieces (valid move) or we
                 # hit an empty space or go off the board (invalid move)
-                
-                # MRC: I'm worried that play_move checks for a lot more edge
-                # cases than here. This function is probably buggy.
-                
                 adj_diff =  adj - array_pos
                 adj_traverse = array_pos + adj_diff
+
                 # Watch out for the edge of the board!
                 while adj_traverse >= 0 and adj_traverse <= 63:
                     if self._positions[adj_traverse] == 0:
@@ -134,13 +160,15 @@ class Board(object):
     # @param2: Human player (1 or 2), used to show available moves
     # @return: Nothing
     def show(self, available_moves=None):
+        #board_chars = chr(0x0020)+unichr(0x25cb)+unichr(0x25cf)
+        board_chars = u'\u0020\u25cb\u25cf'
         print("  a b c d e f g h")
         for i in range(64):
             if (i % 8) == 0:
                 print str((i//8)+1),
             if i in available_moves:
-                print "x",
+                print u'\u2a2f',
             else:
-                print str(self._positions[i]),
+                print board_chars[self._positions[i]],
             if (i % 8) == 7:
                 print("")
