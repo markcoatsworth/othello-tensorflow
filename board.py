@@ -1,16 +1,9 @@
 import copy
-import numba as nb
 import numpy as np
 
 BLACK = 1
 WHITE = 2
 
-spec = [
-    ('_positions', nb.int8[:]),
-    ('_weighted_positions', nb.int8[:]),
-    ('_adjacent_positions', nb.int8[:,:])
-]
-#@nb.jitclass(spec)
 class Board(object):
 
     def __init__(self):
@@ -90,7 +83,7 @@ class Board(object):
     # @param2: Player number to play move for (1 or 2)
     # @param3: Move position (0 to 63)
     def play_move(self, player_num, move_pos):
-
+        
         # Set the move position, get list of adjacent positions
         self._positions[move_pos] = player_num
         adjacent_positions = self._adjacent_positions[move_pos]
@@ -137,7 +130,7 @@ class Board(object):
     # @param1: Self
     # @param2: Human player (1 or 2), used to show available moves
     # @return: Nothing
-    def show(self, available_moves):
+    def show(self, available_moves=None):
         #board_chars = chr(0x25ef)+chr(0x25cb)+chr(0x25cf)
         board_chars = chr(0x0020)+chr(0x25cb)+chr(0x25cf)
         print("  a b c d e f g h")

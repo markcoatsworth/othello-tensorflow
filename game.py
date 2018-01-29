@@ -1,4 +1,5 @@
 from __future__ import print_function
+from anytree import Node, RenderTree
 from board import Board
 from datetime import datetime
 from random import randint
@@ -65,36 +66,98 @@ class Game(object):
                 moves.append(pos)
         self._available_moves[player_num] = moves
 
+    # [Game.build_minmax_tree]
+    # @param1: Self
+    # @param2: Player who we are currently evaluating moves for (1 or 2)
+    # @param3: Available moves for this player
+    # @param4: Parent node in the minmax tree
+    # @param5: Current depth
+    def build_minmax_tree(self, player_num, available_moves, parent_move, parent_game, depth):
+
+        #print("[Game.build_minmax_tree] player_num=",player_num,", available_moves=",available_moves,", parent_move=",parent_move)
+
+        # Base case
+        if depth == 0:
+            return
+
+        # Recursive case: minmax lookahead
+        opponent = player_num^3
+        for move in available_moves:
+
+            # Setup a new minmax game based on the recursive board state. Play the
+            # move, then reevaluate player pieces + opponent available moves
+            minmax_game = Game()
+            minmax_game = copy.deepcopy(parent_game)
+            #print("\n\n[Game.build_minmax_tree] before move, player_num=" + str(player_num) + ", depth=" + str(depth) + ", minmax_game._player_pieces=" + str(minmax_game._player_pieces) + ", minmax_game._available_moves=" + str(minmax_game._available_moves))
+            minmax_game._board.play_move(player_num, move)
+            minmax_game.set_player_pieces(BLACK)
+            minmax_game.set_player_pieces(WHITE)
+            minmax_game.set_available_moves(opponent)
+            #print("[Game.build_minmax_tree] after move, player_num=" + str(player_num) + ", minmax_game._player_pieces=" + str(minmax_game._player_pieces) + ", minmax_game._available_moves=" + str(minmax_game._available_moves))
+
+            # Move score is always relative to the player who originally called
+            # the build_minmax_tree function. 
+            move_score = len(minmax_game._player_pieces[player_num]) - len(minmax_game._player_pieces[opponent])
+            #minmax_game._board.show(minmax_game._available_moves[opponent])
+            node_score = [move, move_score]
+            this_move = Node(node_score, parent=parent_move)
+            #print("[Game.build_minmax_tree] move=" + str(move) + ", this_move=" + str(this_move) + ", move_score=" + str(move_score) + ", minmax_game._player_pieces[player_num]=" + str(minmax_game._player_pieces[player_num])+ ", minmax_game._player_pieces[opponent]=" + str(minmax_game._player_pieces[opponent]))
+            self.build_minmax_tree(opponent, minmax_game._available_moves[opponent], this_move, minmax_game, depth-1)
+
+    # [Game.get_best_minmax_move]
+    # @description: Determine the best move based on current minmax tree
+    # @param1: Self
+    # @return: Next available suggested move (0 to 63)
+    def get_minmax_best_move(self):
+        # For now just return the best child off the root node; figure out
+        # a better strategy later.
+        best_move = self._minmax_tree.children[0].name
+        for child in self._minmax_tree.children:
+            if child.name[1] > best_move[1]:
+                best_move = child.name
+        return child.name
+
+
+
     # [Game.generate_move]
     # @description Generates a (hopefully good) move for a player
     # @param1 Self
     # @param2 Player number to generate move for (1 or 2)
     def generate_move(self, player_num):
-
-        opponent = player_num^3
         
+        # Build a new minmax tree and determine best move
+        self._minmax_tree = Node("root")
+        minmax_depth = 3
+        self.build_minmax_tree(player_num, self._available_moves[player_num], self._minmax_tree, self, minmax_depth)
+        #print(RenderTree(self._minmax_tree))
+        minmax_best_move = self.get_minmax_best_move()
+        #print("[Game.generate_move] minmax_best_move=",minmax_best_move)
+
         # Monte carlo simulations
-        num_simulations = 500
-        num_simulations_per_move = num_simulations // len(self._available_moves[player_num])
-        monte_carlo_winners = []
-        for move in self._available_moves[player_num]:
-            this_move_winners = [0, 0, 0]
-            for i in range(num_simulations_per_move):
-                # Play a random game
-                random_game = RandomGame()
-                random_game._board = copy.deepcopy(self._board)
-                random_game._board.play_move(player_num, move)
-                this_move_winners[random_game.play(opponent, False)] += 1
-            monte_carlo_winners.append([move, this_move_winners])
+        #num_simulations = 500
+        #num_simulations_per_move = num_simulations // len(self._available_moves[player_num])
+        #monte_carlo_winners = []
+        #for move in self._available_moves[player_num]:
+        #    this_move_winners = [0, 0, 0]
+        #    for i in range(num_simulations_per_move):
+        #        # Play a random game
+        #        random_game = RandomGame()
+        #        random_game._board = copy.deepcopy(self._board)
+        #        random_game._board.play_move(player_num, move)
+        #        this_move_winners[random_game.play(opponent, False)] += 1
+        #    monte_carlo_winners.append([move, this_move_winners])
 
+            
         # Determine which move won the most monte carlo simluations
-        monte_carlo_best_move = [-1, -1]
-        for move in monte_carlo_winners:
-            if move[1][player_num] > monte_carlo_best_move[1]:
-                monte_carlo_best_move = [move[0], move[1][player_num]]
-        
+        #monte_carlo_best_move = [-1, -1]
+        #for move in monte_carlo_winners:
+        #    if move[1][player_num] > monte_carlo_best_move[1]:
+        #        monte_carlo_best_move = [move[0], move[1][player_num]]
+
         # For now, select move based on monte carlo simulations
-        move_pos = monte_carlo_best_move[0]
+        #move_pos = monte_carlo_best_move[0]
+        
+        move_pos = minmax_best_move[0]
         return move_pos
 
 
@@ -159,6 +222,7 @@ class Game(object):
 
             # Computer turn
             else:
+                print("Computer is thinking...\n")
                 start_time = datetime.now()
                 move_pos = self.generate_move(current_player)
                 self._board.play_move(current_player, move_pos)

@@ -16,7 +16,6 @@ def main():
     # Read command line args. Assume this is a human vs. computer game, with
     # human playing first, unless told otherwise.
     for arg in sys.argv:
-        print("[main] arg=" + str(arg))
         if(arg == "--help"):
             print("Options:")
             print("--white: Human plays white, computer goes first")
