@@ -52,6 +52,9 @@ class RandomGame(object):
         self.set_available_moves(BLACK)
         self.set_available_moves(WHITE)
         self._game_turn = start_player
+
+        #print("[RandomGame.play] self._available_moves[BLACK]=" + str(self._available_moves[BLACK]))
+        #print("[RandomGame.play] self._available_moves[WHITE]=" + str(self._available_moves[WHITE]))
         
         # Main game loop
         while self._game_turn != GAME_OVER:
@@ -68,6 +71,16 @@ class RandomGame(object):
                 print("White pieces: " + str(self._player_pieces[WHITE]))
                 print("Black available moves: " + str(self._available_moves[BLACK]))
                 print("White available moves: " + str(self._available_moves[WHITE]) + "\n")
+
+            # Check if current player has any available moves before we play.
+            # This can happen towards the end of the game.
+            if len(self._available_moves[current_player]) == 0:
+                self.set_available_moves(opponent)
+                if len(self._available_moves[opponent]) == 0:
+                    self._game_turn = GAME_OVER
+                else:
+                    self._game_turn = opponent
+                continue
 
             # Current player plays a random move
             move_pos = self._available_moves[current_player][np.random.randint(0, len(self._available_moves[current_player]))]

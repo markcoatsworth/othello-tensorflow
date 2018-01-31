@@ -103,18 +103,16 @@ class Game(object):
             #print("[Game.build_minmax_tree] move=" + str(move) + ", this_move=" + str(this_move) + ", move_score=" + str(move_score) + ", minmax_game._player_pieces[player_num]=" + str(minmax_game._player_pieces[player_num])+ ", minmax_game._player_pieces[opponent]=" + str(minmax_game._player_pieces[opponent]))
             self.build_minmax_tree(opponent, minmax_game._available_moves[opponent], this_move, minmax_game, depth-1)
 
-    # [Game.get_best_minmax_move]
-    # @description: Determine the best move based on current minmax tree
+    # [Game.get_minmax_results]
+    # @description: Evaluate the minmax tree, give results for all available moves
     # @param1: Self
-    # @return: Next available suggested move (0 to 63)
-    def get_minmax_best_move(self):
-        # For now just return the best child off the root node; figure out
-        # a better strategy later.
-        best_move = self._minmax_tree.children[0].name
+    # @return: A list of all currently available moves, paired with a score for each
+    def get_minmax_results(self):
+        # For now just return the results of the top level.
+        results = []
         for child in self._minmax_tree.children:
-            if child.name[1] > best_move[1]:
-                best_move = child.name
-        return best_move
+            results.append(child.name)
+        return results
 
     # [Game.generate_move]
     # @description Generates a (hopefully good) move for a player
@@ -122,46 +120,65 @@ class Game(object):
     # @param2 Player number to generate move for (1 or 2)
     def generate_move(self, player_num):
         
-        # Build a new minmax tree and determine best move
+        # Build a new minmax tree and get results for all nodes
         self._minmax_tree = Node("root")
-        minmax_depth = 3
+        minmax_depth = 2
         self.build_minmax_tree(player_num, self._available_moves[player_num], self._minmax_tree, self, minmax_depth)
         #print(RenderTree(self._minmax_tree))
-        minmax_best_move = self.get_minmax_best_move()
-        #print("[Game.generate_move] minmax_best_move=",minmax_best_move)
+        minmax_results = self.get_minmax_results()
 
         # Monte carlo simulations
         num_simulations = 5000
         num_simulations_per_move = num_simulations // len(self._available_moves[player_num])
-        monte_carlo_winners = []
+        monte_carlo_results = []
         opponent = player_num^3
         for move in self._available_moves[player_num]:
-           this_move_winners = [0, 0, 0]
+           this_move_results = [0, 0, 0]
            for i in range(num_simulations_per_move):
                # Play a random game
                random_game = RandomGame()
                random_game._board = copy.deepcopy(self._board)
                random_game._board.play_move(player_num, move)
-               this_move_winners[random_game.play(opponent, False)] += 1
-           monte_carlo_winners.append([move, this_move_winners])
-        #print("[Game.generate_move] monte_carlo_winners=" + str(monte_carlo_winners))
-            
-        # Determine which move won the most monte carlo simluations
-        monte_carlo_best_move = [-1, -1]
-        for move in monte_carlo_winners:
-           if move[1][player_num] > monte_carlo_best_move[1]:
-               monte_carlo_best_move = [move[0], move[1][player_num]]
-        monte_carlo_confidence = float(monte_carlo_best_move[1]) / float(num_simulations_per_move)
+               this_move_results[random_game.play(opponent, False)] += 1
+           monte_carlo_results.append([move, this_move_results])
+
+        # Evaluate confidence of minmax results
+        minmax_confidence = {}
+        minmax_total_score = 0
+        for result in minmax_results:
+            minmax_total_score += result[1]
+        minmax_average_score = float(minmax_total_score) / float(len(minmax_results))
+        for result in minmax_results:
+            this_result_confidence = float(result[1]) / float(minmax_average_score)
+            minmax_confidence[result[0]] = this_result_confidence
+        #print("[generate_move] minmax_confidence=" + str(minmax_confidence))
+        
+        # Evaluate confidence of monte carlo simulations
+        monte_carlo_confidence = {}
+        for result in monte_carlo_results:
+           this_result_confidence = float(result[1][player_num])/float(num_simulations_per_move)
+           monte_carlo_confidence[result[0]] = this_result_confidence
+        #print("[generate_move] monte_carlo_confidence=" + str(monte_carlo_confidence))
+
+        # Evaluate total confidence of available moves
+        moves_confidence = []
+        for move in self._available_moves[player_num]:
+            this_move_confidence = minmax_confidence[move] * monte_carlo_confidence[move]
+            moves_confidence.append([move, this_move_confidence])
+        #print("[generate_move] moves_confidence=" + str(moves_confidence))
+        
+        # Choose a best move based on maximum confidence
+        best_move = moves_confidence[0][0]
+        best_move_confidence = moves_confidence[0][1]
+        for move in moves_confidence:
+            if move[1] > best_move_confidence:
+                best_move = move[0]
+                best_move_confidence = move[1]
 
         # Play a random move
         #move_pos = self._available_moves[player_num][np.random.randint(0, len(self._available_moves[player_num]))]
 
-        # Determine the best move
-        #print("[Game.generate_move] monte_carlo_best_move=" + str(monte_carlo_best_move) + ", monte_carlo_confidence=" + str(monte_carlo_confidence))
-        move_pos = monte_carlo_best_move[0]
-        #move_pos = minmax_best_move[0]
-        
-        return move_pos
+        return best_move
 
 
     # [Game.play_human]
@@ -263,7 +280,6 @@ class Game(object):
     #   different strategies and board weightings.
     # @param1: Self
     def robot_battle(self, verbose=True):
-
         self._player_pieces[BLACK] = [28, 35]
         self._player_pieces[WHITE] = [27, 36]
         for p in self._player_pieces[BLACK]: self._board._positions[p] = BLACK
