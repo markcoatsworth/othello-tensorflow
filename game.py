@@ -16,6 +16,10 @@ WHITE = 2
 GAME_OVER = 3
 DRAW = 4
 
+# Game tunings
+MINMAX_DEPTH = 3
+MONTE_CARLO_NUM_SIMULATIONS = 10000
+
 
 class Game(object):
 
@@ -122,14 +126,12 @@ class Game(object):
         
         # Build a new minmax tree and get results for all nodes
         self._minmax_tree = Node("root")
-        minmax_depth = 2
-        self.build_minmax_tree(player_num, self._available_moves[player_num], self._minmax_tree, self, minmax_depth)
+        self.build_minmax_tree(player_num, self._available_moves[player_num], self._minmax_tree, self, MINMAX_DEPTH)
         #print(RenderTree(self._minmax_tree))
         minmax_results = self.get_minmax_results()
 
         # Monte carlo simulations
-        num_simulations = 5000
-        num_simulations_per_move = num_simulations // len(self._available_moves[player_num])
+        num_simulations_per_move = MONTE_CARLO_NUM_SIMULATIONS // len(self._available_moves[player_num])
         monte_carlo_results = []
         opponent = player_num^3
         for move in self._available_moves[player_num]:
