@@ -57,14 +57,13 @@ class Board(object):
     # @param2: Player number to calculate score for (1 or 2)
     def evaluate_score(self, player_num, player_pieces):
         opponent = player_num^3
-        
         player_score = 0
         for pos in player_pieces[player_num]:
             player_score += self._weighted_positions[player_num][pos]
         
         opponent_score = 0
         for pos in player_pieces[opponent]:
-            player_score += self._weighted_positions[opponent][pos]
+            opponent_score += self._weighted_positions[opponent][pos]
         
         score = player_score - opponent_score
         return score
@@ -167,8 +166,10 @@ class Board(object):
             if (i % 8) == 0:
                 print str((i//8)+1),
             if i in available_moves:
-                print u'\u2a2f',
+                #print u'\u2a2f',
+                print "x",
             else:
-                print board_chars[self._positions[i]],
+                #print board_chars[self._positions[i]],
+                print self._positions[i],
             if (i % 8) == 7:
                 print("")

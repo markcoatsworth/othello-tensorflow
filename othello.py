@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.6
 
 from game import Game
 
@@ -24,7 +24,6 @@ def main():
             human_player = WHITE
         if(arg == "--robot-battle"):
             robot_battle = True
-        
 
     game = Game()
 
