@@ -17,8 +17,8 @@ GAME_OVER = 3
 DRAW = 4
 
 # Game tunings
-MINMAX_DEPTH = 1
-MONTE_CARLO_NUM_SIMULATIONS = 10000
+MINMAX_DEPTH = 3
+MONTE_CARLO_NUM_SIMULATIONS = 15000
 
 
 class Game(object):
@@ -96,13 +96,11 @@ class Game(object):
             # who then becomes opponent at even depths, and vice versa.
             if depth % 2 == MINMAX_DEPTH % 2:
                 move_score = minmax_game._board.evaluate_score(player_num, minmax_game._player_pieces)
-                #print("[build_minmax_tree] depth=" + str(depth) + ", calculating score for player_num=" + str(player_num) + ", move=" + str(move) + ", move_score=" + str(move_score) + ", minmax_game._player_pieces=" + str(minmax_game._player_pieces))
             else:
                 move_score = minmax_game._board.evaluate_score(opponent, minmax_game._player_pieces)
-                #print("[build_minmax_tree] depth=" + str(depth) + ", calculating score for opponent=" + str(opponent) + ", move=" + str(move) + ", move_score=" + str(move_score) + ", minmax_game._player_pieces=" + str(minmax_game._player_pieces))
+
             node_score = [move, move_score]
             this_move = Node(node_score, parent=parent_move)
-            #print("[Game.build_minmax_tree] move=" + str(move) + ", this_move=" + str(this_move) + ", move_score=" + str(move_score) + ", minmax_game._player_pieces[player_num]=" + str(minmax_game._player_pieces[player_num])+ ", minmax_game._player_pieces[opponent]=" + str(minmax_game._player_pieces[opponent]))
             self.build_minmax_tree(opponent, minmax_game._available_moves[opponent], this_move, minmax_game, depth-1)
 
     # [Game.get_minmax_results]
@@ -126,22 +124,15 @@ class Game(object):
             return
         else:
             for child in parent.children:
-                #print("[Game.evaluate_minmax_tree] depth=" + str(depth) + ", parent=" + str(parent) + ", child=" + str(child))
                 self.evaluate_minmax_tree(child, depth+1)
-                
                 # Scan children for min value
                 if depth % 2 == 1:
-                    #print("[Game.evaluate_minmax_tree] depth=ODD, parent.name=" + str(parent.name) + ", looking for min value, child.name=" + str(child.name) + ", child.name[1]=" + str(child.name[1]))
                     if parent.name[1] > child.name[1]:
                         parent.name[1] = child.name[1]
-                        #print("[Game.evaluate_minmax_tree] At depth=" + str(depth) + ", adjusting parent to new min-value, parent=" + str(parent))
                 # Scan children for max value
                 else:
-                    #print("[Game.evaluate_minmax_tree] depth=EVEN, parent.name=" + str(parent.name) + ", looking for max value, child.name=" + str(child.name) + ", child.name[1]=" + str(child.name[1]))
                     if parent.name[1] < child.name[1]:
                         parent.name[1] = child.name[1]
-                        #print("[Game.evaluate_minmax_tree] At depth=" + str(depth) + ", adjusting parent to new max-value, parent=" + str(parent))
-
 
 
     # [Game.generate_move]
@@ -149,13 +140,30 @@ class Game(object):
     # @param1 Self
     # @param2 Player number to generate move for (1 or 2)
     def generate_move(self, player_num):
-        
+
+        global MINMAX_DEPTH
+        global MONTE_CARLO_NUM_SIMULATIONS
+
+        # Adjust some tunings based on move number
+        move_num = len(self._player_pieces[BLACK]) + len(self._player_pieces[WHITE])
+        if move_num == 8 or move_num == 9:
+            MONTE_CARLO_NUM_SIMULATIONS = 25000
+        if move_num == 22 or move_num == 23:
+            MINMAX_DEPTH = 2
+            MONTE_CARLO_NUM_SIMULATIONS = 50000
+        if move_num == 38 or move_num == 39:
+            MINMAX_DEPTH = 3
+            MONTE_CARLO_NUM_SIMULATIONS = 45000
+        if move_num == 50 or move_num == 51:
+            MINMAX_DEPTH = 4
+            MONTE_CARLO_NUM_SIMULATIONS = 75000
+            
         # Build a new minmax tree and get results for all nodes
         self._minmax_tree = Node("root")
         self.build_minmax_tree(player_num, self._available_moves[player_num], self._minmax_tree, self, MINMAX_DEPTH)
-        print(RenderTree(self._minmax_tree))
+        #print(RenderTree(self._minmax_tree))
         minmax_results = self.get_minmax_results()
-        print("[generate_move] minmax_results=" + str(minmax_results))
+        #print("[generate_move] minmax_results=" + str(minmax_results))
 
         # Monte carlo simulations
         num_simulations_per_move = MONTE_CARLO_NUM_SIMULATIONS // len(self._available_moves[player_num])
@@ -170,6 +178,7 @@ class Game(object):
                 random_game._board.play_move(player_num, move)
                 this_move_results[random_game.play(opponent, False)] += 1
             monte_carlo_results.append([move, this_move_results])
+        #print("[generate_move] monte_carlo_results=" + str(monte_carlo_results))
 
         # Evaluate confidence of minmax results
         minmax_confidence = {}
@@ -190,21 +199,21 @@ class Game(object):
             this_result_confidence = float(result[1]) / float(minmax_average_score)
             #print("[generate_move] minmax_average_score=" + str(minmax_average_score) + ", result[1]=" + str(result[1]) + ", this_result_confidence=" + str(this_result_confidence))
             minmax_confidence[result[0]] = this_result_confidence
-        print("[generate_move] minmax_confidence=" + str(minmax_confidence))
+        #print("[generate_move] minmax_confidence=" + str(minmax_confidence))
         
         # Evaluate confidence of monte carlo simulations
         monte_carlo_confidence = {}
         for result in monte_carlo_results:
             this_result_confidence = float(result[1][player_num])/float(num_simulations_per_move)
             monte_carlo_confidence[result[0]] = this_result_confidence
-        print("[generate_move] monte_carlo_confidence=" + str(monte_carlo_confidence))
+        #print("[generate_move] monte_carlo_confidence=" + str(monte_carlo_confidence))
 
         # Evaluate total confidence of available moves
         moves_confidence = []
         for move in self._available_moves[player_num]:
             this_move_confidence = minmax_confidence[move] * monte_carlo_confidence[move]
             moves_confidence.append([move, this_move_confidence])
-        print("[generate_move] moves_confidence=" + str(moves_confidence))
+        #print("[generate_move] moves_confidence=" + str(moves_confidence))
         
         # Choose a best move based on maximum confidence
         best_move = moves_confidence[0][0]
@@ -219,17 +228,17 @@ class Game(object):
 
         return best_move
 
-    # [Game.generate_move_alt]
+    # [Game.generate_move_test]
     # @description Generates an alternate (hopefully good) move for a player.
-    #   Used for robot battles to try different strategies.
+    #   Used for robot battles to test different strategies.
     # @param1 Self
     # @param2 Player number to generate move for (1 or 2)
-    def generate_move_alt(self, player_num):
+    def generate_move_test(self, player_num):
         
         # Build a new minmax tree and get results for all nodes
         self._minmax_tree = Node("root")
-        self.build_minmax_tree(player_num, self._available_moves[player_num], self._minmax_tree, self, 3)
-        print(RenderTree(self._minmax_tree))
+        self.build_minmax_tree(player_num, self._available_moves[player_num], self._minmax_tree, self, MINMAX_DEPTH)
+        #print(RenderTree(self._minmax_tree))
         minmax_results = self.get_minmax_results()
         #print("[generate_move_alt] minmax_results=" + str(minmax_results))
 
@@ -253,7 +262,6 @@ class Game(object):
         minmax_min_result = 0
         # Adjust all results to be >= 0
         for result in minmax_results:
-            #minmax_total_score += result[1]
             if result[1] < minmax_min_result:
                 minmax_min_result = result[1]
         if minmax_min_result < 0:
@@ -266,21 +274,21 @@ class Game(object):
             this_result_confidence = float(result[1]) / float(minmax_average_score)
             #print("[generate_move_alt] minmax_average_score=" + str(minmax_average_score) + ", result[1]=" + str(result[1]) + ", this_result_confidence=" + str(this_result_confidence))
             minmax_confidence[result[0]] = this_result_confidence
-        print("[generate_move_alt] minmax_confidence=" + str(minmax_confidence))
+        #print("[generate_move_alt] minmax_confidence=" + str(minmax_confidence))
         
         # Evaluate confidence of monte carlo simulations
         monte_carlo_confidence = {}
         for result in monte_carlo_results:
             this_result_confidence = float(result[1][player_num])/float(num_simulations_per_move)
             monte_carlo_confidence[result[0]] = this_result_confidence
-        print("[generate_move_alt] monte_carlo_confidence=" + str(monte_carlo_confidence))
+        #print("[generate_move_alt] monte_carlo_confidence=" + str(monte_carlo_confidence))
 
         # Evaluate total confidence of available moves
         moves_confidence = []
         for move in self._available_moves[player_num]:
             this_move_confidence = minmax_confidence[move] * monte_carlo_confidence[move]
             moves_confidence.append([move, this_move_confidence])
-        print("[generate_move_alt] moves_confidence=" + str(moves_confidence))
+        #print("[generate_move_alt] moves_confidence=" + str(moves_confidence))
         
         # Choose a best move based on maximum confidence
         best_move = moves_confidence[0][0]
@@ -364,7 +372,7 @@ class Game(object):
                 end_time = datetime.now()
                 move_time = (end_time - start_time)
 
-                print("Computer played " + str(chr((move_pos%8)+97)) + str((move_pos//8)+1) + " (position " + str(move_pos) + "), move took " + str(move_time) + "\n")
+                print("\n\nComputer played " + str(chr((move_pos%8)+97)) + str((move_pos//8)+1) + " (position " + str(move_pos) + "), move took " + str(move_time) + "\n")
                 self.set_available_moves(opponent)
                 # Check if other player passes, or if game is over
                 if len(self._available_moves[opponent]) == 0:
@@ -426,15 +434,16 @@ class Game(object):
             # features.
             start_time = datetime.now()
             if current_player == BLACK:
-                move_pos = self.generate_move_alt(current_player)
+                move_pos = self.generate_move_test(current_player)
             else:
                 move_pos = self.generate_move(current_player)
             self._board.play_move(current_player, move_pos)
             end_time = datetime.now()
             move_time = (end_time - start_time)
             
+            move_num = len(self._player_pieces[BLACK]) + len(self._player_pieces[WHITE])
             if verbose:
-                print("\n" + (str(self._player_names[current_player])) + " played " + str(chr((move_pos%8)+97)) + str((move_pos//8)+1) + " (position " + str(move_pos) + "), move took " + str(move_time) + "\n")
+                print("\nMove " + str(move_num) + ": " + (str(self._player_names[current_player])) + " played " + str(chr((move_pos%8)+97)) + str((move_pos//8)+1) + " (position " + str(move_pos) + "), move took " + str(move_time) + "\n")
             self.set_available_moves(opponent)
             # Check if other player passes, or if game is over
             if len(self._available_moves[opponent]) == 0:
